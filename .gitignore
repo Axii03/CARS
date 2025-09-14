@@ -12,3 +12,4 @@ models/rf_detector.joblib
 models/stacking_detector.joblib
 __pycache__/
 stat/
+dist/ransomware_client.log
