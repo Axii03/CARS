@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Detection Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .critical { color: #e74c3c; }
+        .high { color: #ff6b35; }
+        .medium { color: #f39c12; }
+        .low { color: #27ae60; }
+        .total { color: #3498db; }
+
+        .menu-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            background: white;
+            border-radius: 10px;
+            margin: 25px auto 30px auto;
+            max-width: 900px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.07);
+            padding: 12px 0;
+        }
+
+        .menu-item {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1em;
+            padding: 8px 22px;
+            border-radius: 6px;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .menu-item:hover:not(.active) {
+            background: #f0f2ff;
+            color: #4f6bed;
+        }
+
+        .menu-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.13);
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 450px;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            height: fit-content;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .alert-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .alert-item {
+            background: #f8f9fa;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .alert-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .alert-header {
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            transition: background-color 0.3s ease;
+            width: 100%;
+        }
+
+        .alert-header:hover {
+            background: #f0f2ff;
+        }
+
+        .alert-info {
+            flex-grow: 1;
+            min-width: 0;
+            margin-right: 10px;
+        }
+
+        .alert-id {
+            font-weight: bold;
+            font-size: 1.0em;
+            margin-bottom: 5px;
+            word-break: break-all;
+        }
+
+        .alert-meta {
+            font-size: 0.85em;
+            color: #666;
+            word-wrap: break-word;
+        }
+
+        .alert-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .severity-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: bold;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .severity-critical {
+            background: #ffe6e6;
+            color: #d63031;
+        }
+
+        .severity-high {
+            background: #fff2e6;
+            color: #ff6b35;
+        }
+
+        .severity-medium {
+            background: #fff8e6;
+            color: #f39c12;
+        }
+
+        .severity-low {
+            background: #e6f7e6;
+            color: #00b894;
+        }
+
+        .expand-icon {
+            transition: transform 0.3s ease;
+            font-size: 1.2em;
+            color: #667eea;
+            margin-left: 8px;
+        }
+
+        .expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .alert-details {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 500px;
+            }
+        }
+
+        .detail-section {
+            margin-bottom: 15px;
+        }
+
+        .detail-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+
+        .detail-content {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+            font-size: 0.9em;
+        }
+
+        .chart-container {
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-select {
+            padding: 8px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            background: white;
+            color: #333;
+            font-size: 0.9em;
+            transition: border-color 0.3s ease;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-bottom: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+
+        .error {
+            background: #ffe6e6;
+            color: #d63031;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #d63031;
+        }
+
+        .confidence-score {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .confidence-high {
+            background: #e8f5e8;
+            color: #2d5a2d;
+        }
+
+        .confidence-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .confidence-low {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .hash-display {
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            word-break: break-all;
+        }
+
+        .network-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid;
+        }
+
+        .status-online {
+            border-left-color: #27ae60;
+        }
+
+        .status-warning {
+            border-left-color: #f39c12;
+        }
+
+        .status-offline {
+            border-left-color: #e74c3c;
+        }
+
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+            
+            .container {
+                padding: 10px;
+            }
+
+            .filters {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Menu Bar -->
+        <nav class="menu-bar">
+            <a href="/" class="menu-item">Dynamic</a>
+            <a href="/static" class="menu-item">Static</a>
+            <a href="#" class="menu-item active">Network</a>
+            <a href="/risk-predictor" class="menu-item">Risk Predictor</a>
+        </nav>
+
+        <div class="header">
+            <h1>🌐 Network Security Dashboard</h1>
+            <p>Real-time network security monitoring and threat analysis</p>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats cards will be populated by JavaScript -->
+        </div>
+
+        <div class="content-grid">
+            <div class="main-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 class="section-title">Network Security Overview</h2>
+                    <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+                </div>
+                
+                <div class="filters">
+                    <select class="filter-select" id="severityFilter" onchange="applyFilters()">
+                        <option value="all">All Severity Levels</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                    
+                    <select class="filter-select" id="typeFilter" onchange="applyFilters()">
+                        <option value="all">All Alert Types</option>
+                        <option value="SUSPICIOUS_CONNECTION_PATTERN">Connection Pattern</option>
+                        <option value="SUSPICIOUS_FLOW_ERROR">Flow Error</option>
+                        <option value="MALWARE_DETECTED">Malware Detection</option>
+                    </select>
+                    
+                    <select class="filter-select" id="timeFilter" onchange="applyFilters()">
+                        <option value="24h">Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+
+                <div class="network-status" id="networkStatus">
+                    <!-- Network status will be populated here -->
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="networkChart"></canvas>
+                </div>
+
+                <div id="systemStatus" class="loading">
+                    Loading system status...
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <h3 class="section-title">Security Alerts</h3>
+                <ul class="alert-list" id="alertList">
+                    <!-- Alert items will be populated by JavaScript -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script>
+        let chart;
+        let currentData = null;
+        let allAlerts = [];
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshData();
+            setInterval(() => {
+                refreshData();
+            }, 30000);
+        });
+
+        async function refreshData() {
+            try {
+                // Fetch main network dashboard data
+                const response = await fetch('/api/network/data');
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    currentData = data;
+                    allAlerts = data.alerts || [];
+                    updateStats(data.stats || {});
+                    updateAlertList(allAlerts);
+                    updateChart(data.hourly_stats || []);
+                    updateNetworkStatus(data);
+                    updateSystemStatus();
+                } else {
+                    showError('Failed to load network data: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error fetching network data:', error);
+                showError('Connection error: ' + error.message);
+            }
+        }
+
+        function updateStats(stats) {
+            const statsGrid = document.getElementById('statsGrid');
+            const scanCoverage = stats.scan_coverage || 0;
+            
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number total">${stats.total_alerts || 0}</div>
+                    <div class="stat-label">Total Alerts</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number critical">${stats.critical_alerts || 0}</div>
+                    <div class="stat-label">Critical Threats</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number high">${stats.high_alerts || 0}</div>
+                    <div class="stat-label">High Priority</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number medium">${stats.medium_alerts || 0}</div>
+                    <div class="stat-label">Medium Priority</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number low">${scanCoverage.toFixed(1)}%</div>
+                    <div class="stat-label">Network Coverage</div>
+                </div>
+            `;
+        }
+
+        function updateAlertList(alerts) {
+            const alertList = document.getElementById('alertList');
+            if (!alerts || alerts.length === 0) {
+                alertList.innerHTML = '<li style="text-align: center; color: #666; padding: 20px;">No alerts found</li>';
+                return;
+            }
+
+            alertList.innerHTML = alerts.map(alert => `
+                <li class="alert-item" data-alert-id="${alert.alert_id}">
+                    <div class="alert-header" onclick="toggleAlertDetails('${alert.alert_id}')">
+                        <div class="alert-info">
+                            <div class="alert-id">${alert.alert_id.substring(0, 30)}...</div>
+                            <div class="alert-meta">
+                                ${alert.source || 'Unknown'} | ${alert.alert_Type || 'Unknown'} | 
+                                ${new Date(alert.timestamp).toLocaleString()}
+                            </div>
+                        </div>
+                        <div class="alert-controls">
+                            <div class="severity-badge severity-${alert.severity.toLowerCase()}">
+                                ${alert.severity}
+                            </div>
+                            <div class="expand-icon">▼</div>
+                        </div>
+                    </div>
+                    <div class="alert-details" id="details-${alert.alert_id}">
+                        <div class="detail-section">
+                            <div class="detail-title">🔍 Alert Details</div>
+                            <div class="detail-content">
+                                <strong>Type:</strong> ${alert.alert_Type}<br>
+                                <strong>Source:</strong> ${alert.source}<br>
+                                <strong>Description:</strong> ${alert.details}<br>
+                                <strong>Confidence:</strong> 
+                                <span class="confidence-score confidence-${getConfidenceLevel(alert.confidence_score || 0)}">
+                                    ${((alert.confidence_score || 0) * 100).toFixed(1)}%
+                                </span>
+                            </div>
+                        </div>
+                        ${alert.ja3_hash ? `
+                        <div class="detail-section">
+                            <div class="detail-title">🔐 Additional Info</div>
+                            <div class="detail-content">
+                                <strong>Hash:</strong> <span class="hash-display">${alert.ja3_hash}</span><br>
+                                <strong>Status:</strong> 
+                                <span class="severity-badge severity-${alert.severity.toLowerCase()}">
+                                    ${alert.severity}
+                                </span>
+                            </div>
+                        </div>
+                        ` : ''}
+                        <div class="detail-section">
+                            <div class="detail-title">⏰ Timeline</div>
+                            <div class="detail-content">
+                                <strong>Detected:</strong> ${new Date(alert.timestamp).toLocaleString()}<br>
+                                <strong>Duration:</strong> ${getTimeDifference(alert.timestamp)}
+                            </div>
+                        </div>
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        function toggleAlertDetails(alertId) {
+            const alertItem = document.querySelector(`[data-alert-id="${alertId}"]`);
+            const detailsDiv = document.getElementById(`details-${alertId}`);
+            if (alertItem.classList.contains('expanded')) {
+                alertItem.classList.remove('expanded');
+                detailsDiv.style.display = 'none';
+            } else {
+                alertItem.classList.add('expanded');
+                detailsDiv.style.display = 'block';
+            }
+        }
+
+        function updateChart(hourlyStats) {
+            const ctx = document.getElementById('networkChart').getContext('2d');
+            if (chart) chart.destroy();
+            
+            // Generate last 24 hours if no data
+            if (!hourlyStats || hourlyStats.length === 0) {
+                hourlyStats = [];
+                for (let i = 23; i >= 0; i--) {
+                    const hour = new Date(Date.now() - i * 60 * 60 * 1000).getHours();
+                    hourlyStats.push({
+                        hour: `${hour.toString().padStart(2, '0')}:00`,
+                        total: 0,
+                        critical: 0,
+                        high: 0,
+                        medium: 0,
+                        low: 0
+                    });
+                }
+            }
+
+            const labels = hourlyStats.map(stat => stat.hour);
+            const criticalData = hourlyStats.map(stat => stat.critical || 0);
+            const highData = hourlyStats.map(stat => stat.high || 0);
+            const mediumData = hourlyStats.map(stat => stat.medium || 0);
+            const lowData = hourlyStats.map(stat => stat.low || 0);
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Critical',
+                            data: criticalData,
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'High',
+                            data: highData,
+                            borderColor: '#ff6b35',
+                            backgroundColor: 'rgba(255, 107, 53, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Medium',
+                            data: mediumData,
+                            borderColor: '#f39c12',
+                            backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Low',
+                            data: lowData,
+                            borderColor: '#27ae60',
+                            backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Network Alerts by Severity (Last 24 Hours)',
+                            font: { size: 16 }
+                        },
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            stacked: true,
+                            title: { display: true, text: 'Number of Alerts' }
+                        },
+                        x: { title: { display: true, text: 'Hour' } }
+                    }
+                }
+            });
+        }
+
+        function updateNetworkStatus(data) {
+            const statusDiv = document.getElementById('networkStatus');
+            const stats = data.stats || {};
+            const alertsCount = stats.total_alerts || 0;
+            const dbConnected = alertsCount > 0;
+            
+            statusDiv.innerHTML = `
+                <div class="status-card ${dbConnected ? 'status-online' : 'status-offline'}">
+                    <h4 style="margin-bottom: 10px;">${dbConnected ? '🟢' : '🔴'} Security Database</h4>
+                    <p><strong>Status:</strong> ${dbConnected ? 'Connected' : 'No Data'}</p>
+                    <p><strong>Active Alerts:</strong> ${alertsCount}</p>
+                </div>
+                <div class="status-card ${alertsCount > 0 ? 'status-online' : 'status-warning'}">
+                    <h4 style="margin-bottom: 10px;">${alertsCount > 0 ? '🟢' : '🟡'} Security Monitor</h4>
+                    <p><strong>Total Alerts:</strong> ${alertsCount}</p>
+                    <p><strong>Last Update:</strong> ${new Date().toLocaleString()}</p>
+                </div>
+            `;
+        }
+
+        function updateSystemStatus() {
+            const statusDiv = document.getElementById('systemStatus');
+            if (currentData && currentData.stats) {
+                const stats = currentData.stats;
+                const lastAlert = stats.last_alert ? 
+                    new Date(stats.last_alert).toLocaleString() : 'No recent alerts';
+                const threatLevel = stats.threat_level || 'Low';
+                const threatColor = getThreatLevelColor(threatLevel);
+                
+                statusDiv.innerHTML = `
+                    <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid ${threatColor};">
+                        <h4 style="color: ${threatColor}; margin-bottom: 10px;">🛡️ Threat Level: ${threatLevel}</h4>
+                        <p><strong>Last Alert:</strong> ${lastAlert}</p>
+                        <p><strong>Database Status:</strong> Connected and operational</p>
+                        <p><strong>Monitoring:</strong> Network security alerts and patterns</p>
+                        <p><strong>Coverage:</strong> ${stats.scan_coverage || 0}% of network monitored</p>
+                    </div>
+                `;
+            } else {
+                statusDiv.innerHTML = `
+                    <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #e74c3c;">
+                        <h4 style="color: #e74c3c; margin-bottom: 10px;">🔴 System Status: No Data</h4>
+                        <p><strong>Database Status:</strong> Not connected or empty</p>
+                        <p><strong>Action Required:</strong> Check database configuration</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Filtering
+        async function applyFilters() {
+            const severityFilter = document.getElementById('severityFilter').value;
+            const typeFilter = document.getElementById('typeFilter').value;
+            const timeFilter = document.getElementById('timeFilter').value;
+            
+            try {
+                const url = `/api/network/alerts?severity=${severityFilter}&type=${typeFilter}&time=${timeFilter}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    allAlerts = data.alerts || [];
+                    updateAlertList(allAlerts);
+                } else {
+                    showError('Error filtering alerts: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                showError('Error fetching filtered alerts: ' + error.message);
+            }
+        }
+
+        // Helper functions
+        function getConfidenceLevel(confidence) {
+            if (confidence >= 0.8) return 'high';
+            if (confidence >= 0.6) return 'medium';
+            return 'low';
+        }
+
+        function getThreatLevelColor(level) {
+            switch(level.toLowerCase()) {
+                case 'critical': return '#e74c3c';
+                case 'high': return '#ff6b35';
+                case 'medium': return '#f39c12';
+                case 'low': return '#27ae60';
+                default: return '#3498db';
+            }
+        }
+
+        function getTimeDifference(timestamp) {
+            const now = new Date();
+            const then = new Date(timestamp);
+            const diffMs = now - then;
+            const minutes = Math.floor(diffMs / 60000);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+            
+            if (days > 0) return `${days} day(s) ago`;
+            if (hours > 0) return `${hours} hour(s) ago`;
+            if (minutes > 0) return `${minutes} minute(s) ago`;
+            return 'Just now';
+        }
+
+        function showError(message) {
+            const statusDiv = document.getElementById('systemStatus');
+            statusDiv.innerHTML = `<div class="error">⚠️ ${message}</div>`;
+        }
+    </script>
+</body>
+</html>

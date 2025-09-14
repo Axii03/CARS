@@ -1,0 +1,14 @@
+# Ignore Python virtual environments
+venv37/
+backup_venv/
+env/
+ENV/
+build/
+Metrics/
+changelog.txt
+sysmon/
+models/lgbm_detector.joblib
+models/rf_detector.joblib
+models/stacking_detector.joblib
+__pycache__/
+stat/
