@@ -241,7 +241,7 @@ class AccessibleLocationFinder:
         return self.accessible_paths
 
 class RansomwareDetectionClient:
-    def __init__(self, server_host='localhost', server_port=5000):
+    def __init__(self, server_host='http://13.48.126.25', server_port=80):
         self.server_host = server_host
         self.server_port = server_port
         
@@ -267,7 +267,7 @@ class RansomwareDetectionClient:
         
         print(f"ENHANCED RANSOMWARE DETECTION CLIENT")
         print(f"="*45)
-        print(f"Server: {self.server_host}:{self.server_port}")
+        #print(f"Server: {self.server_host}:{self.server_port}")
         print(f"Enhanced logging and detailed analysis tracking")
     
     def send_to_server(self, file_data, features):
@@ -281,7 +281,7 @@ class RansomwareDetectionClient:
             # Use HTTP POST instead of raw socket
             import requests
             
-            url = f"http://{self.server_host}:{self.server_port}/api/static/predict"
+            url = f"http://13.48.126.253/api/static/predict"
             
             response = requests.post(
                 url, 
@@ -426,7 +426,7 @@ class RansomwareDetectionClient:
         
         print(f"\nENHANCED CLIENT MONITORING ACTIVE!")
         print(f"   Monitoring {scheduled_count} locations")
-        print(f"   Server: {self.server_host}:{self.server_port}")
+        #print(f"   Server: {self.server_host}:{self.server_port}")
         print(f"   Enhanced database logging enabled")
         print(f"   Press Ctrl+C to stop monitoring")
         print("="*50)
@@ -458,15 +458,19 @@ def main():
     print("- Compatible with Flask server")
     print()
     
-    SERVER_HOST = 'localhost'
-    SERVER_PORT = 5000  # Changed from 8888 to 5000
+    #SERVER_HOST = 'localhost'
+    #SERVER_PORT = 5000  # Changed from 8888 to 5000
+
+    SERVER_HOST = 'http://13.48.126.253'
+    SERVER_PORT = 80 
     
     try:
         print("Testing server connection...")
         import requests
         
         # Test HTTP connection instead of socket
-        test_url = f"http://{SERVER_HOST}:{SERVER_PORT}/health"
+        #test_url = f"http://{SERVER_HOST}:{SERVER_PORT}/health"
+        test_url = f"http://13.48.126.253/health"
         response = requests.get(test_url, timeout=5)
         
         if response.status_code == 200:

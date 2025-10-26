@@ -17,8 +17,8 @@ if getattr(sys, 'frozen', False) and len(sys.argv) == 1:
 
 # 2. Timestamp setup and constants
 SYSMON_EVENT_LOG_PATH = "Microsoft-Windows-Sysmon/Operational"
-PREDICTION_API_URL = "http://localhost:5000/predict"  # API endpoint for predictions
-
+PREDICTION_API_URL = "http://16.171.59.202/predict"  # API endpoint for predictions
+#PREDICTION_API_URL = "http://localhost:5000/predict"  # API endpoint for predictions
 # 3. Global cache for parent process information, ML strings collection, and change detection
 global_parent_cache = {}
 ml_strings_buffer = []  # Buffer to collect ML strings for batch prediction
@@ -734,7 +734,7 @@ def run_continuous():
     
     # Test API connection on startup
     try:
-        response = requests.get("http://localhost:5000/health", timeout=5)
+        response = requests.get("http://16.171.59.202//health", timeout=5)
         if response.status_code == 200:
             print("[INFO] ✅ Prediction API is accessible")
         else:
@@ -808,7 +808,7 @@ def run_event_driven_monitoring():
     
     # Test API connection on startup
     try:
-        response = requests.get("http://localhost:5000/health", timeout=5)
+        response = requests.get("http://16.171.59.202/health", timeout=5)
         if response.status_code == 200:
             print("[INFO] ✅ Prediction API is accessible")
         else:
@@ -874,7 +874,7 @@ def run_basic_monitoring():
     
     # Test API connection on startup
     try:
-        response = requests.get("http://localhost:5000/health", timeout=5)
+        response = requests.get("http://16.171.59.202/health", timeout=5)
         if response.status_code == 200:
             print("[INFO] ✅ Prediction API is accessible")
         else:

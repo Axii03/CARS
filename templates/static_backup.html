@@ -460,59 +460,6 @@
             color: white;
         }
 
-        .quarantine-section {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .quarantine-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .quarantine-card {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 15px;
-            border-left: 4px solid #667eea;
-        }
-
-        .quarantine-list {
-            margin-top: 20px;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .quarantine-item {
-            display: grid;
-            grid-template-columns: auto 1fr auto auto;
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            background: white;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .quarantine-item:hover {
-            background: #f8f9fa;
-        }
-
-        .risk-badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            font-weight: 600;
-        }
-
-        .risk-high { background: #fee2e2; color: #dc2626; }
-        .risk-medium { background: #fef3c7; color: #d97706; }
-        .risk-low { background: #dcfce7; color: #15803d; }
-
         @media (max-width: 768px) {
             .content-grid {
                 grid-template-columns: 1fr;
@@ -629,34 +576,6 @@
                 <ul class="recent-files-list" id="recentFilesList">
                     <!-- Recent files will be populated by JavaScript -->
                 </ul>
-            </div>
-        </div>
-
-        <!-- Quarantine Section -->
-        <div class="quarantine-section">
-            <h2>🔒 Quarantine Overview</h2>
-            
-            <div class="quarantine-grid">
-                <div class="quarantine-card">
-                    <h3>Total Quarantined</h3>
-                    <div class="stat">{{ quarantine_stats.total_quarantined }}</div>
-                </div>
-                <div class="quarantine-card">
-                    <h3>High Risk</h3>
-                    <div class="stat risk-high">{{ quarantine_stats.high_risk }}</div>
-                </div>
-                <div class="quarantine-card">
-                    <h3>Medium Risk</h3>
-                    <div class="stat risk-medium">{{ quarantine_stats.medium_risk }}</div>
-                </div>
-                <div class="quarantine-card">
-                    <h3>Low Risk</h3>
-                    <div class="stat risk-low">{{ quarantine_stats.low_risk }}</div>
-                </div>
-            </div>
-
-            <div class="quarantine-list" id="quarantineList">
-                <!-- Quarantined files will be loaded here -->
             </div>
         </div>
     </div>
@@ -1085,49 +1004,13 @@
             return path.substring(0, remainingLength) + '...' + fileName;
         }
 
-        // Quarantine section
-        function loadQuarantineList() {
-            fetch('/api/quarantine/list')
-                .then(response => response.json())
-                .then(data => {
-                    const listElement = document.getElementById('quarantineList');
-                    listElement.innerHTML = data.quarantine_logs.map(log => `
-                        <div class="quarantine-item">
-                            <div class="file-icon">📄</div>
-                            <div class="file-info">
-                                <strong>${log.original_file_name}</strong>
-                                <div class="file-meta">${log.original_file_path}</div>
-                            </div>
-                            <div class="risk-badge ${getRiskClass(log.probability_ransomware)}">
-                                ${getRiskLabel(log.probability_ransomware)}
-                            </div>
-                            <div class="quarantine-time">
-                                ${new Date(log.created_at).toLocaleString()}
-                            </div>
-                        </div>
-                    `).join('');
-                });
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('fileDetailsModal');
+            if (event.target === modal) {
+                closeModal();
+            }
         }
-
-        function getRiskClass(probability) {
-            if (probability > 0.8) return 'risk-high';
-            if (probability > 0.5) return 'risk-medium';
-            return 'risk-low';
-        }
-
-        function getRiskLabel(probability) {
-            if (probability > 0.8) return 'High Risk';
-            if (probability > 0.5) return 'Medium Risk';
-            return 'Low Risk';
-        }
-
-        // Load quarantine list when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            loadQuarantineList();
-            refreshData();
-        });
-        // Refresh every 30 seconds
-        setInterval(loadQuarantineList, 30000);
     </script>
 </body>
 </html>

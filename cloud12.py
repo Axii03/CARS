@@ -8,6 +8,7 @@ import logging
 import sqlite3
 import json
 import os
+import socket
 from datetime import datetime
 from contextlib import contextmanager
 
@@ -296,6 +297,25 @@ def init_database():
                 reason TEXT,
                 performed_by TEXT NOT NULL,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # --- NEW: quarantine_logs table to record client quarantine notifications ---
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS quarantine_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                original_file_path TEXT,
+                original_file_name TEXT,
+                quarantine_location TEXT,
+                file_size INTEGER,
+                file_hash TEXT,
+                file_source TEXT,
+                confidence REAL,
+                probability_ransomware REAL,
+                probability_benign REAL,
+                client_hostname TEXT,
+                notes TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
@@ -756,28 +776,43 @@ def bulk_whitelist_action():
 @app.route('/static')
 def static_dashboard():
     """Static analysis dashboard page"""
-    return render_template('static.html')
-
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        # Get quarantine stats
+        cursor.execute('''
+            SELECT 
+                COUNT(*) as total_quarantined,
+                SUM(CASE WHEN probability_ransomware > 0.8 THEN 1 ELSE 0 END) as high_risk,
+                SUM(CASE WHEN probability_ransomware BETWEEN 0.5 AND 0.8 THEN 1 ELSE 0 END) as medium_risk,
+                SUM(CASE WHEN probability_ransomware < 0.5 THEN 1 ELSE 0 END) as low_risk
+            FROM quarantine_logs
+        ''')
+        quarantine_stats = dict(cursor.fetchone())
+        
+    return render_template('static.html', quarantine_stats=quarantine_stats)
 
 @app.route('/risk-predictor')
 def risk_predictor_simple():
-    """Simplified risk predictor route - basic connectivity check"""
-    import socket
-    
+    """Check if port 8080 is available and redirect or fallback"""
+
     def check_service_available(host, port, timeout=3):
-        """Check if a service is available by attempting to connect to the port"""
+        """Try to connect to host:port"""
         try:
             sock = socket.create_connection((host, port), timeout)
             sock.close()
             return True
         except (socket.error, socket.timeout):
             return False
-    
-    if check_service_available("192.168.1.5", 5000):
-        logger.info("Risk predictor service is available, redirecting...")
-        return redirect("http://192.168.1.5:5000")
+
+    # Get the hostname or IP of the current server
+    host = request.host.split(':')[0]  # strips out the port if any
+
+    # Check if the service on port 8080 is available
+    if check_service_available(host, 8080):
+        logger.info(f"Risk predictor service available on {host}:8080, redirecting...")
+        return redirect(f"http://{host}:8080/")
     else:
-        logger.warning("Risk predictor service is not available, using fallback")
+        logger.warning("Risk predictor service is not available, using fallback.")
         return render_template('risk.html')
 
 @app.route('/api/static/data')
@@ -2073,6 +2108,7 @@ def predict_batch(data=None):
         
         # Count unique processes for summary
         unique_processes = set(meta.get('process_id', '') for meta in metadata_list)
+
         malware_processes = set(exp['metadata'].get('process_id', '') for exp in explanations if exp['prediction'] == 'malware')
         
         total_unique = len(unique_processes)
@@ -2109,6 +2145,85 @@ def predict_batch(data=None):
         logger.error(f"Prediction error: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/quarantine/notify', methods=['POST'])
+def quarantine_notify():
+    """Accept quarantine notifications from clients and store them."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"status": "error", "error": "No data provided"}), 400
+
+        # Normalize keys used by client
+        original_path = data.get('original_file_path') or data.get('original_path') or ''
+        original_name = data.get('original_file_name') or data.get('file_name') or ''
+        quarantine_location = data.get('quarantine_location') or ''
+        file_size = data.get('file_size', 0)
+        file_hash = data.get('file_hash') or data.get('file_signature') or ''
+        file_source = data.get('file_source') or ''
+        confidence = float(data.get('confidence', 0.0))
+        prob_ransom = float(data.get('probability_ransomware', data.get('prob_ransomware', 0.0)))
+        prob_benign = float(data.get('probability_benign', data.get('prob_benign', 0.0)))
+        client_hostname = data.get('client_hostname', '')
+        notes = data.get('notes', '')
+
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO quarantine_logs
+                (original_file_path, original_file_name, quarantine_location, file_size, file_hash, file_source,
+                 confidence, probability_ransomware, probability_benign, client_hostname, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                original_path, original_name, quarantine_location, file_size, file_hash, file_source,
+                confidence, prob_ransom, prob_benign, client_hostname, notes
+            ))
+            conn.commit()
+
+        logger.info(f"Quarantine notification stored: {original_name} from {client_hostname}")
+        return jsonify({"status": "success", "message": "Quarantine recorded"}), 200
+
+    except Exception as e:
+        logger.error(f"Error storing quarantine notification: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+# Add this after your other table creation SQL
+def init_db():
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        # ...existing table creates...
+
+        # Create quarantine_logs table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS quarantine_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                original_file_path TEXT,
+                original_file_name TEXT,
+                quarantine_location TEXT,
+                file_size INTEGER,
+                file_hash TEXT,
+                file_source TEXT,
+                confidence REAL,
+                probability_ransomware REAL,
+                probability_benign REAL,
+                client_hostname TEXT,
+                notes TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+# Add this new route to get quarantine data
+@app.route('/api/quarantine/list')
+def get_quarantine_list():
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM quarantine_logs 
+            ORDER BY created_at DESC 
+            LIMIT 100
+        ''')
+        quarantine_logs = [dict(row) for row in cursor.fetchall()]
+        return jsonify({"status": "success", "quarantine_logs": quarantine_logs})
+
 if __name__ == '__main__':
     print("Starting ML Prediction API Server with SQLite Database and Whitelist System...")
     print(f"Database: {DB_PATH}")
@@ -2116,6 +2231,7 @@ if __name__ == '__main__':
     
     # Initialize database
     init_database()
+    init_db()
     
     print("Available endpoints:")
     print("  GET  / - Web Dashboard")
@@ -2138,6 +2254,7 @@ if __name__ == '__main__':
     print("  GET  /api/static/data - Static analysis data")
     print("  GET  /api/static/file/<id> - Get static file details")
     print("  GET  /api/static/files - Get filtered static files")
+    print("  GET  /api/quarantine/list - Get quarantine logs")
     
     # Run the Flask app
     app.run(host='0.0.0.0', port=5000, debug=True)
